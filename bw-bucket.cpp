@@ -13,15 +13,15 @@ int compare(const void *a, const void *b) {
   int a_ptr = *(int*)a + 2;
   int b_ptr = *(int*)b + 2;
   while (count < chars) { 
-    if (a_ptr >= chars) a_ptr -= chars; 
-    if (b_ptr >= chars) b_ptr -= chars;
-    if (buf[a_ptr] != buf[b_ptr]) return buf[a_ptr] - buf[b_ptr];
+    int a_val = (a_ptr >= chars) ? 0 : buf[a_ptr] + 1;
+    int b_val = (b_ptr >= chars) ? 0 : buf[b_ptr] + 1;
+    if (a_val != b_val) return a_val - b_val;
     a_ptr++;
     b_ptr++;
     count++;
   }
   return 0;
-};
+}
 
 static inline int char_at(int rot, int d) {
   int pos = rot + d;
@@ -66,15 +66,16 @@ int main(int argc, char **argv) {
 
   printf("chars: %d\n", chars);
 
-  int BUCKETS = 256 * 256;
+  int BUCKETS = 256 * 257;
   vector<int>* buckets = new vector<int>[BUCKETS];
   vector<int> rots;
 
   struct timeval start, end, diff;
   gettimeofday(&start, 0);
   for (int i = 0; i < chars; i++) {
-    int second = (i == chars - 1) ? 0 : i + 1;
-    buckets[buf[i] * 256 + buf[second]].push_back(i);
+    // + 1 needed so that 0 char is reserved for '$'
+    int second = (i == chars - 1) ? 0 : buf[i + 1] + 1;
+    buckets[buf[i] * 257 + second].push_back(i);
   }
   for (int i = 0; i < BUCKETS; i++) {
     // qsort(&buckets[i][0], buckets[i].size(), sizeof(int), compare);
@@ -89,12 +90,17 @@ int main(int argc, char **argv) {
   gettimeofday(&end, 0);
   timersub(&end, &start, &diff);
   printf("%ld.%06ld\n", (long)diff.tv_sec, (long)diff.tv_usec);
-  int pos = 0;
-  while (buckets[pos].empty()) {
-    pos++;
+  int pos = buf[0] * 257 + buf[1] + 1;
+  int count = 0;
+  for (int i = 0; i < pos; i++) {
+    count += buckets[i].size();
   }
-  printf("%d\n", buckets[pos][0]);
-  // printf("%d\n", rots[0]);
+  for (int i = 0; i < buckets[pos].size(); i++) {
+    if (buckets[pos][i] == 0) {
+      printf("%d\n", count + i);
+      break;
+    }
+  }
 
   return 0;
 }
