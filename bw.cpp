@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
   gettimeofday(&end, 0);
   timersub(&end, &start, &diff);
   printf("%ld.%06ld\n", (long)diff.tv_sec, (long)diff.tv_usec);
+  printf("%d\n", rots[0]);
 
   return 0;
 }

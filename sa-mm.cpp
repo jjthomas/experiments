@@ -4,6 +4,19 @@
 #include <vector>
 #include <limits.h>
 
+static inline uint64_t
+rdtscp(void)
+{
+	uint32_t eax, edx;
+
+	__asm__ __volatile__("rdtscp"
+				: "+a" (eax), "=d" (edx)
+				:
+				: "%ecx", "memory");
+
+	return (((uint64_t)edx << 32) | eax);
+}
+
 using namespace std;
 
 typedef struct {
@@ -94,9 +107,11 @@ int main(int argc, char **argv) {
     for (int i = 0; i < chars; i++) {
       data3[counts[data2[i].first]++] = data2[i];
     }
+    /*
     // sort
     memcpy(data3, data1, sizeof(p) * chars);
     qsort(data3, chars, sizeof(p), compare);
+    */
     /*
     if (!verify_sorted(data3, chars)) {
       printf("not sorted at %d\n", gap);
