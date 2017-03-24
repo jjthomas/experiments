@@ -1,3 +1,4 @@
+// http://stackoverflow.com/questions/17761704/suffix-array-algorithm
 // clang++ -std=c++11 bw.cpp
 #include <sys/time.h>
 #include <fstream>

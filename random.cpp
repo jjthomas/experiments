@@ -16,7 +16,7 @@ struct node {
 };
 
 int main(int argc, char **argv) {
-  int SIZE = 100000000;
+  int SIZE = atoi(argv[1]);
   int ITS = 1;
   vector<int> indices;
   node *nodes = new node[SIZE];
