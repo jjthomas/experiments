@@ -1,4 +1,6 @@
 // clang++ -std=c++11 bw.cpp
+// attempt at faster sa-mm that tries to do the radix sort only on runs where the ordering is currently ambiguous
+// ends up being very slow because we have to iterate through the counts array (size = block size) for every run on every value of gap, which becomes expensive
 #include <sys/time.h>
 #include <fstream>
 #include <vector>
