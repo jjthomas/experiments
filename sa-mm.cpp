@@ -88,6 +88,7 @@ int main(int argc, char **argv) {
   uint64_t rank_time = 0;
   while (true) {
     uint64_t radix_start = rdtsc();
+    /*
     // radix pass 1
     for (int i = 0; i < chars + 1; i++) {
       counts[i] = 0;
@@ -121,11 +122,10 @@ int main(int argc, char **argv) {
       data3[counts[data2[i].first]++] = data2[i];
     }
     radix_time += (rdtsc() - radix_start);
-    /*
+    */
     // sort
     memcpy(data3, data1, sizeof(p) * chars);
     qsort(data3, chars, sizeof(p), compare);
-    */
     /*
     if (!verify_sorted(data3, chars)) {
       printf("not sorted at %d\n", gap);
