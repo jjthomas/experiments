@@ -42,9 +42,7 @@ int *data1;
 int compare(const void *a, const void *b) {
   p *a_p = (p *)a;
   p *b_p = (p *)b;
-  int a_v = (a_p->i + gap >= chars) ? 0 : data1[a_p->i + gap];
-  int b_v = (b_p->i + gap >= chars) ? 0 : data1[b_p->i + gap];
-  return a_v - b_v;
+  return a_p->c - b_p->c;
 };
 
 int main(int argc, char **argv) {
@@ -64,7 +62,6 @@ int main(int argc, char **argv) {
 
   data1 = (int *)malloc(sizeof(int) * chars);
   p *data2 = (p *)malloc(sizeof(p) * chars);
-  p *data3 = (p *)malloc(sizeof(p) * chars);
 
   for (int i = 0; i < chars; i++) {
     data1[i] = buf[i];
@@ -126,14 +123,16 @@ int main(int argc, char **argv) {
         sum2 = new_sum2;
       }
       */
+      for (int i = idx; i <= idx + reps; i++) {
+	data2[i].c = (data2[i].i + gap >= chars) ? 0 : data1[data2[i].i + gap];
+      }
       qsort(data2 + idx, reps + 1, sizeof(p), compare);
       int last_new_idx = -1;
       int last_new = -1;
       for (int i = idx; i <= idx + reps; i++) {
-	int next = (data2[i].i + gap >= chars) ? 0 : data1[data2[i].i + gap];
-	if (next != last_new) {
+	if (data2[i].c != last_new) {
 	  last_new_idx = i;
-	  last_new = next;
+	  last_new = data2[i].c;
 	}
         // increment by 1 so we can use 0 as the special '$' char
         data2[i].c = last_new_idx + 1;
