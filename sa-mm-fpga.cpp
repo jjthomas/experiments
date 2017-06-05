@@ -48,6 +48,11 @@ int num_lists;
 #define GLOB_OFF_MASK 0x1FF
 #define LOOKUP_GLOB(e) LOOKUP((e) >> 9, (e) & GLOB_OFF_MASK)
 
+/*
+#define LOOKUP(l, e) (data1 + (l << 9) + e)
+#define LOOKUP_GLOB(e) (data1 + e)
+*/
+
 int compare(const void *a, const void *b) {
   p *a_p = (p *)a;
   p *b_p = (p *)b;
@@ -72,7 +77,7 @@ void do_full_sort() {
     for (int j = 0; j < 512; j++) {
       sort_buf[j] = *LOOKUP(i, j);
     }
-    std::sort((uint64_t *)sort_buf, (uint64_t *)(sort_buf + 512));
+    qsort(sort_buf, 512, sizeof(p), compare);
     for (int j = 0; j < 512; j++) {
       *LOOKUP(i, j) = sort_buf[j];
     }
@@ -141,22 +146,34 @@ int main(int argc, char **argv) {
   buf_size = ((chars - 1) / 4096 + 1) * 4096;
   num_lists = buf_size / 512;
   data1 = (p *)malloc(sizeof(p) * buf_size);
-  memset(data1, 0xFF, sizeof(p) * buf_size);
   int *ranks = (int *)malloc(sizeof(int) * chars);
   merge_buf = (p *)malloc(sizeof(p) * buf_size);
   // only for CPU-only version
   sort_buf = (p *)malloc(sizeof(p) * 512);
   for (int i = 0; i < chars; i++) {
     // TODO we can save an iteration and set gap back to 2 if we set both first and second here
-    data1[i].first = 0;
-    data1[i].second = buf[i + 1];
-    data1[i].i = i;
+    p *cur = LOOKUP_GLOB(i);
+    cur->first = 0;
+    cur->second = buf[i];
+    cur->i = i;
+  }
+  for (int i = chars; i < buf_size; i++) {
+    p *cur = LOOKUP_GLOB(i);
+    cur->first = 131071;
+    cur->second = 131071;
+    cur->i = 131071;
   }
 
   int gap = 1;
- 
+
+  struct timeval start, end, diff;
+  gettimeofday(&start, 0);
+  uint64_t total_start = rdtsc();
+  uint64_t sort_time = 0;
   while (true) {
+    uint64_t sort_start = rdtsc();
     do_full_sort();
+    sort_time += rdtsc() - sort_start;
     int el_to_check = 512;
     while (el_to_check < buf_size) {
       p *prev = LOOKUP_GLOB(el_to_check - 1);
@@ -171,10 +188,11 @@ int main(int argc, char **argv) {
         while (upper_bound < buf_size && LOOKUP_GLOB(upper_bound)->first == prev->first) {
           upper_bound++;
 	}
-	printf("%d %d\n", lower_bound, upper_bound);
+	// printf("%d %d %d %d\n", upper_bound, buf_size, LOOKUP_GLOB(upper_bound)->first, prev->first);
+	// printf("%d %d\n", lower_bound, upper_bound);
         merge_lists(lower_bound, upper_bound);
 	// TODO remove
-	assert(verify_sorted(lower_bound, upper_bound));
+	// assert(verify_sorted(lower_bound, upper_bound));
 	el_to_check = ((upper_bound >> 9) + 1) << 9;
       } else {
         el_to_check += 512;
@@ -199,12 +217,17 @@ int main(int argc, char **argv) {
       break;
     }
     for (int i = 0; i < chars; i++) {
-      data1[i].first = ranks[data1[i].i];
-      data1[i].second = (data1[i].i < chars - gap) ? ranks[data1[i].i + gap] : 0;
+      p *cur = LOOKUP_GLOB(i);
+      cur->first = ranks[cur->i];
+      cur->second = (cur->i < chars - gap) ? ranks[cur->i + gap] : 0;
     }
     gap *= 2;
-    printf("new gap %d\n", gap);
+    // printf("new gap %d\n", gap);
   }
+  gettimeofday(&end, 0);
+  timersub(&end, &start, &diff);
+  printf("gettimeofday: %ld.%06ld\n", (long)diff.tv_sec, (long)diff.tv_usec);
+  printf("%lld/%lld\n", sort_time, rdtsc() - total_start);
   printf("%d\n", ranks[0]);
   printf("%d\n", gap);
   return 0;
