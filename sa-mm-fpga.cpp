@@ -42,14 +42,18 @@ p *sort_buf;
 int buf_size;
 int num_lists;
 
-#define OFF_MASK 0x7
-#define LOOKUP(l, e) (data1 + (((l) >> 3) << 12) + ((l) & OFF_MASK) + ((e) << 3))
+#define LIST_BITS 9
+#define LIST_SIZE (1 << LIST_BITS)
+#define LG_LISTS_PER_BLOCK (12 - LIST_BITS)
 
-#define GLOB_OFF_MASK 0x1FF
-#define LOOKUP_GLOB(e) LOOKUP((e) >> 9, (e) & GLOB_OFF_MASK)
+#define OFF_MASK ((1 << LG_LISTS_PER_BLOCK) - 1)
+#define LOOKUP(l, e) (data1 + (((l) >> LG_LISTS_PER_BLOCK) << 12) + ((l) & OFF_MASK) + ((e) << LG_LISTS_PER_BLOCK))
+
+#define GLOB_OFF_MASK (LIST_SIZE - 1)
+#define LOOKUP_GLOB(e) LOOKUP((e) >> LIST_BITS, (e) & GLOB_OFF_MASK)
 
 /*
-#define LOOKUP(l, e) (data1 + (l << 9) + e)
+#define LOOKUP(l, e) (data1 + (l << LIST_BITS) + e)
 #define LOOKUP_GLOB(e) (data1 + e)
 */
 
@@ -74,29 +78,29 @@ bool verify_sorted(int lower, int upper) {
 
 void do_full_sort() {
   for (int i = 0; i < num_lists; i++) { 
-    for (int j = 0; j < 512; j++) {
+    for (int j = 0; j < LIST_SIZE; j++) {
       sort_buf[j] = *LOOKUP(i, j);
     }
-    qsort(sort_buf, 512, sizeof(p), compare);
-    for (int j = 0; j < 512; j++) {
+    qsort(sort_buf, LIST_SIZE, sizeof(p), compare);
+    for (int j = 0; j < LIST_SIZE; j++) {
       *LOOKUP(i, j) = sort_buf[j];
     }
   }
 }
 
 void merge_lists(int lower, int upper) {
-  int lower_list = lower >> 9;
-  int upper_list = (upper - 1) >> 9;
+  int lower_list = lower >> LIST_BITS;
+  int upper_list = (upper - 1) >> LIST_BITS;
   if (lower_list == upper_list) {
     return;
   } else {
     // two or more lists
     int first_ptr = lower;
-    int first_bound = upper_list << 9;
+    int first_bound = upper_list << LIST_BITS;
     int second_ptr = first_bound;
     if (upper_list - lower_list > 1) {
       int mid_list = (lower_list + upper_list) / 2;
-      first_bound = mid_list << 9;
+      first_bound = mid_list << LIST_BITS;
       second_ptr = first_bound;
       merge_lists(lower, first_bound);
       merge_lists(first_bound, upper);
@@ -144,12 +148,12 @@ int main(int argc, char **argv) {
   }
 
   buf_size = ((chars - 1) / 4096 + 1) * 4096;
-  num_lists = buf_size / 512;
+  num_lists = buf_size / LIST_SIZE;
   data1 = (p *)malloc(sizeof(p) * buf_size);
   int *ranks = (int *)malloc(sizeof(int) * chars);
   merge_buf = (p *)malloc(sizeof(p) * buf_size);
   // only for CPU-only version
-  sort_buf = (p *)malloc(sizeof(p) * 512);
+  sort_buf = (p *)malloc(sizeof(p) * LIST_SIZE);
   for (int i = 0; i < chars; i++) {
     // TODO we can save an iteration and set gap back to 2 if we set both first and second here
     p *cur = LOOKUP_GLOB(i);
@@ -174,7 +178,7 @@ int main(int argc, char **argv) {
     uint64_t sort_start = rdtsc();
     do_full_sort();
     sort_time += rdtsc() - sort_start;
-    int el_to_check = 512;
+    int el_to_check = LIST_SIZE;
     while (el_to_check < buf_size) {
       p *prev = LOOKUP_GLOB(el_to_check - 1);
       p *next = LOOKUP_GLOB(el_to_check);
@@ -193,9 +197,9 @@ int main(int argc, char **argv) {
         merge_lists(lower_bound, upper_bound);
 	// TODO remove
 	// assert(verify_sorted(lower_bound, upper_bound));
-	el_to_check = ((upper_bound >> 9) + 1) << 9;
+	el_to_check = ((upper_bound >> LIST_BITS) + 1) << LIST_BITS;
       } else {
-        el_to_check += 512;
+        el_to_check += LIST_SIZE;
       }
     }
 
