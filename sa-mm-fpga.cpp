@@ -30,10 +30,10 @@ rdtsc(void)
 using namespace std;
 
 typedef struct __attribute__((packed)) {
-  unsigned int: 13;
-  unsigned int i: 17;
-  unsigned int second: 17;
-  unsigned int first: 17;
+  unsigned int: 4;
+  unsigned int i: 20;
+  unsigned int second: 20;
+  unsigned int first: 20;
 } p;
 
 p *data1;
@@ -159,9 +159,9 @@ int main(int argc, char **argv) {
   }
   for (int i = chars; i < buf_size; i++) {
     p *cur = LOOKUP_GLOB(i);
-    cur->first = 131071;
-    cur->second = 131071;
-    cur->i = 131071;
+    cur->first = 1048575;
+    cur->second = 1048575;
+    cur->i = 1048575;
   }
 
   int gap = 1;
