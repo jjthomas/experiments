@@ -42,19 +42,62 @@ int buf_size;
 int num_lists;
 
 #define OFF_MASK 0x7
-#define LOOKUP(arr, l, e) ((arr) + (((l) >> 3) << 12) + ((l) & OFF_MASK) + ((e) << 3))
+#define LOOKUP(l, e) (data1 + (((l) >> 3) << 12) + ((l) & OFF_MASK) + ((e) << 3))
 
 #define GLOB_OFF_MASK 0x1FF
-#define LOOKUP_GLOB(arr, e) (LOOKUP(arr, (e) >> 9, (e) & GLOB_OFF_MASK))  
+#define LOOKUP_GLOB(e) LOOKUP((e) >> 9, (e) & GLOB_OFF_MASK)
 
 void do_full_sort() {
   for (int i = 0; i < num_lists; i++) { 
     for (int j = 0; j < 512; j++) {
-      sort_buf[j] = *LOOKUP(data1, i, j);
+      sort_buf[j] = *LOOKUP(i, j);
     }
     std::sort((uint64_t *)sort_buf, (uint64_t *)(sort_buf + 512));
     for (int j = 0; j < 512; j++) {
-      *LOOKUP(data1, i, j) = sort_buf[j];
+      *LOOKUP(i, j) = sort_buf[j];
+    }
+  }
+}
+
+void merge_lists(int lower, int upper) {
+  int lower_list = lower >> 9;
+  int upper_list = (upper - 1) >> 9;
+  if (lower_list == upper_list) {
+    return;
+  } else {
+    // two or more lists
+    int first_ptr = lower;
+    int first_bound = upper_list << 9;
+    int second_ptr = first_bound;
+    if (upper_list - lower_list > 1) {
+      int mid_list = (lower_list + upper_list) / 2;
+      first_bound = mid_list << 9;
+      second_ptr = first_bound;
+      merge_lists(lower, first_bound);
+      merge_lists(first_bound, upper);
+    }
+    int merge_ptr = 0;
+    while (first_ptr < first_bound && second_ptr < upper) {
+      p *first_el = LOOKUP_GLOB(first_ptr);
+      p *second_el = LOOKUP_GLOB(second_ptr);
+      if (first_el->second < second_el->second) {
+        merge_buf[merge_ptr++] = *first_el;
+        first_ptr++;
+      } else {
+        merge_buf[merge_ptr++] = *second_el;
+        second_ptr++;
+      }
+    }
+    while (first_ptr < first_bound) {
+      merge_buf[merge_ptr++] = *LOOKUP_GLOB(first_ptr);
+      first_ptr++;
+    }
+    while (second_ptr < upper) {
+      merge_buf[merge_ptr++] = *LOOKUP_GLOB(second_ptr);
+      second_ptr++;
+    }
+    for (int i = lower; i < upper; i++) {
+      *LOOKUP_GLOB(i) = merge_buf[i - lower];
     }
   }
 }
@@ -95,16 +138,16 @@ int main(int argc, char **argv) {
     do_full_sort();
     int el_to_check = 512;
     while (el_to_check < buf_size) {
-      p *prev = LOOKUP_GLOB(data1, el_to_check - 1);
-      p *next = LOOKUP_GLOB(data1, el_to_check);
+      p *prev = LOOKUP_GLOB(el_to_check - 1);
+      p *next = LOOKUP_GLOB(el_to_check);
       if (prev->first == next->first) {
 	int lower_bound = el_to_check - 1;
 	int upper_bound = el_to_check;
-        while (lower_bound >= 0 && LOOKUP_GLOB(data1, lower_bound)->first == prev->first) {
+        while (lower_bound >= 0 && LOOKUP_GLOB(lower_bound)->first == prev->first) {
           lower_bound--;
 	}
 	lower_bound++;
-        while (upper_bound < buf_size && LOOKUP_GLOB(data1, upper_bound)->first == prev->first) {
+        while (upper_bound < buf_size && LOOKUP_GLOB(upper_bound)->first == prev->first) {
           upper_bound++;
 	}
         merge_lists(lower_bound, upper_bound);
