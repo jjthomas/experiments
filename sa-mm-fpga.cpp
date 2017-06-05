@@ -5,6 +5,7 @@
 #include <vector>
 #include <limits.h>
 #include <algorithm>
+#include <cassert>
 
 static inline uint64_t
 rdtsc(void)
@@ -46,6 +47,25 @@ int num_lists;
 
 #define GLOB_OFF_MASK 0x1FF
 #define LOOKUP_GLOB(e) LOOKUP((e) >> 9, (e) & GLOB_OFF_MASK)
+
+int compare(const void *a, const void *b) {
+  p *a_p = (p *)a;
+  p *b_p = (p *)b;
+  if (a_p->first != b_p->first) {
+    return a_p->first - b_p->first;
+  } else {
+    return a_p->second - b_p->second;
+  }
+};
+
+bool verify_sorted(int lower, int upper) {
+  for (int i = lower + 1; i < upper; i++) {
+    if (compare(LOOKUP_GLOB(i), LOOKUP_GLOB(i - 1)) < 0) {
+      return false;
+    }
+  }
+  return true;
+}
 
 void do_full_sort() {
   for (int i = 0; i < num_lists; i++) { 
@@ -127,12 +147,13 @@ int main(int argc, char **argv) {
   // only for CPU-only version
   sort_buf = (p *)malloc(sizeof(p) * 512);
   for (int i = 0; i < chars; i++) {
+    // TODO we can save an iteration and set gap back to 2 if we set both first and second here
     data1[i].first = 0;
     data1[i].second = buf[i + 1];
     data1[i].i = i;
   }
 
-  int gap = 2;
+  int gap = 1;
  
   while (true) {
     do_full_sort();
@@ -150,7 +171,10 @@ int main(int argc, char **argv) {
         while (upper_bound < buf_size && LOOKUP_GLOB(upper_bound)->first == prev->first) {
           upper_bound++;
 	}
+	printf("%d %d\n", lower_bound, upper_bound);
         merge_lists(lower_bound, upper_bound);
+	// TODO remove
+	assert(verify_sorted(lower_bound, upper_bound));
 	el_to_check = ((upper_bound >> 9) + 1) << 9;
       } else {
         el_to_check += 512;
@@ -160,14 +184,16 @@ int main(int argc, char **argv) {
     bool dups = false;
     int cur_char = 1;
     for (int i = 0; i < chars; i++) {
+      p *cur = LOOKUP_GLOB(i);
       if (i > 0) {
-	if (data1[i].first == data1[i - 1].first && data1[i].second == data1[i - 1].second) {
+	p *prev = LOOKUP_GLOB(i - 1);
+	if (cur->first == prev->first && cur->second == prev->second) {
           dups = true;
 	} else {
           cur_char++;
 	}
       }
-      ranks[data1[i].i] = cur_char;
+      ranks[cur->i] = cur_char;
     }
     if (!dups) {
       break;
@@ -177,8 +203,9 @@ int main(int argc, char **argv) {
       data1[i].second = (data1[i].i < chars - gap) ? ranks[data1[i].i + gap] : 0;
     }
     gap *= 2;
+    printf("new gap %d\n", gap);
   }
-  printf("%d\n", data1[0].first);
+  printf("%d\n", ranks[0]);
   printf("%d\n", gap);
   return 0;
 }
