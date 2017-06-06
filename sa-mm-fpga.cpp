@@ -46,16 +46,16 @@ int num_lists;
 #define LIST_SIZE (1 << LIST_BITS)
 #define LG_LISTS_PER_BLOCK (12 - LIST_BITS)
 
+/*
 #define OFF_MASK ((1 << LG_LISTS_PER_BLOCK) - 1)
 #define LOOKUP(l, e) (data1 + (((l) >> LG_LISTS_PER_BLOCK) << 12) + ((l) & OFF_MASK) + ((e) << LG_LISTS_PER_BLOCK))
 
 #define GLOB_OFF_MASK (LIST_SIZE - 1)
 #define LOOKUP_GLOB(e) LOOKUP((e) >> LIST_BITS, (e) & GLOB_OFF_MASK)
+*/
 
-/*
 #define LOOKUP(l, e) (data1 + (l << LIST_BITS) + e)
 #define LOOKUP_GLOB(e) (data1 + e)
-*/
 
 int compare(const void *a, const void *b) {
   p *a_p = (p *)a;
@@ -174,6 +174,7 @@ int main(int argc, char **argv) {
   gettimeofday(&start, 0);
   uint64_t total_start = rdtsc();
   uint64_t sort_time = 0;
+  uint64_t update_time = 0;
   while (true) {
     uint64_t sort_start = rdtsc();
     do_full_sort();
@@ -203,6 +204,7 @@ int main(int argc, char **argv) {
       }
     }
 
+    uint64_t update_start = rdtsc();
     bool dups = false;
     int cur_char = 1;
     for (int i = 0; i < chars; i++) {
@@ -218,6 +220,7 @@ int main(int argc, char **argv) {
       ranks[cur->i] = cur_char;
     }
     if (!dups) {
+      update_time += rdtsc() - update_start;
       break;
     }
     for (int i = 0; i < chars; i++) {
@@ -225,13 +228,14 @@ int main(int argc, char **argv) {
       cur->first = ranks[cur->i];
       cur->second = (cur->i < chars - gap) ? ranks[cur->i + gap] : 0;
     }
+    update_time += rdtsc() - update_start;
     gap *= 2;
     // printf("new gap %d\n", gap);
   }
   gettimeofday(&end, 0);
   timersub(&end, &start, &diff);
   printf("gettimeofday: %ld.%06ld\n", (long)diff.tv_sec, (long)diff.tv_usec);
-  printf("%lld/%lld\n", sort_time, rdtsc() - total_start);
+  printf("%lld/%lld/%lld\n", sort_time, update_time, rdtsc() - total_start);
   printf("%d\n", ranks[0]);
   printf("%d\n", gap);
   return 0;
