@@ -2,11 +2,24 @@
 #include <sys/time.h>
 #include <fstream>
 #include <vector>
+#include <string.h>
+#include <assert.h>
+
+#define QUICKSORT_TEST 1
 
 using namespace std;
 
 int chars;
 char *buf;
+
+bool verify_sorted(uint64_t *arr, int lower, int upper) {
+  for (int i = lower + 1; i < upper; i++) {
+    if (arr[i] < arr[i - 1]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 int compare(const void *a, const void *b) {
   int count = 0;
@@ -44,6 +57,21 @@ void sort(vector<int> &rots, int lo, int hi, int d) {
   sort(rots, gt+1, hi, d);
 }
 
+void quicksort(uint64_t *arr, int lo, int hi) {
+  if (hi <= lo) return;
+  int lt = lo, gt = hi;
+  uint64_t v = arr[lo];
+  int i = lo + 1;
+  while (i <= gt) {
+    uint64_t t = arr[i];
+    if      (t < v) swap(arr[lt++], arr[i++]);
+    else if (t > v) swap(arr[i], arr[gt--]);
+    else            i++;
+  }
+  quicksort(arr, lo, lt-1);
+  quicksort(arr, gt+1, hi);
+}
+
 void sort_top(vector<int> &rots) {
   sort(rots, 0, rots.size() - 1, 0);
 }
@@ -68,7 +96,6 @@ int main(int argc, char **argv) {
 
   int BUCKETS = 256 * 257;
   vector<int>* buckets = new vector<int>[BUCKETS];
-  vector<int> rots;
 
   struct timeval start, end, diff;
   gettimeofday(&start, 0);
@@ -101,6 +128,21 @@ int main(int argc, char **argv) {
       break;
     }
   }
+
+#ifdef QUICKSORT_TEST
+  uint64_t *arr = (uint64_t *)malloc(sizeof(uint64_t) * chars);
+  for (int i = 0; i < chars; i++) {
+    arr[i] = buf[i];
+  }
+  gettimeofday(&start, 0);
+  for (int i = 0; i < 10; i++) {
+    quicksort(arr, 0, chars - 1);
+  }
+  gettimeofday(&end, 0);
+  timersub(&end, &start, &diff);
+  assert(verify_sorted(arr, 0, chars));
+  printf("%ld.%06ld: %lld\n", (long)diff.tv_sec, (long)diff.tv_usec, arr[0]);
+#endif
 
   return 0;
 }
