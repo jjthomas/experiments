@@ -1,4 +1,5 @@
 // clang++ -std=c++11 bw.cpp
+// g++ -O3 -std=c++11 -march=native bw-bucket.cpp
 #include <sys/time.h>
 #include <fstream>
 #include <vector>
@@ -79,7 +80,7 @@ void sort_top(vector<int> &rots) {
 int main(int argc, char **argv) {
   int CHARS = atoi(argv[1]);
   
-  ifstream infile("/Users/joseph/streaming-benchmarks/data/kafka-json.txt");
+  ifstream infile("kafka-json.txt");
   string line;
 
   chars = 0;
