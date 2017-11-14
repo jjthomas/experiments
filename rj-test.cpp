@@ -13,6 +13,18 @@ int main(int argc, char **argv) {
   int EVENTS = 40000;
   string *raw = new string[EVENTS];
   long *times = new long[EVENTS];
+  char *ad_id = new char[EVENTS * 250];
+  int ad_counter = 0;
+  char *page_id = new char[EVENTS * 250];
+  int page_counter = 0;
+  char *user_id = new char[EVENTS * 250];
+  int user_counter = 0;
+  char *event_type = new char[EVENTS * 250];
+  int event_counter = 0;
+  char *ad_type = new char[EVENTS * 250];
+  int ad_type_counter = 0;
+  char *ip = new char[EVENTS * 250];
+  int ip_counter = 0;
   
   ifstream infile("/Users/joseph/streaming-benchmarks/data/kafka-json.txt");
   string line;
@@ -27,9 +39,21 @@ int main(int argc, char **argv) {
   gettimeofday(&start, 0);
   for (int i = 0; i < EVENTS; i++) {
     Document d;
-    d.ParseInsitu(raw[i].c_str());
-    Value &v = d["event_time"];
-    times[i] = v.GetInt64();
+    d.ParseInsitu(const_cast<char *>(raw[i].c_str()));
+    // Value &v = d["event_time"];
+    times[i] = d["event_time"].GetInt64();
+    memcpy(ad_id + ad_counter, d["ad_id"].GetString(), strlen(d["ad_id"].GetString()));
+    ad_counter += strlen(d["ad_id"].GetString());
+    memcpy(page_id + page_counter, d["page_id"].GetString(), strlen(d["page_id"].GetString()));
+    page_counter += strlen(d["page_id"].GetString());
+    memcpy(user_id + user_counter, d["user_id"].GetString(), strlen(d["user_id"].GetString()));
+    user_counter += strlen(d["user_id"].GetString());
+    memcpy(event_type + event_counter, d["event_type"].GetString(), strlen(d["event_type"].GetString()));
+    event_counter += strlen(d["event_type"].GetString());
+    memcpy(ad_type + ad_type_counter, d["ad_type"].GetString(), strlen(d["ad_type"].GetString()));
+    ad_type_counter += strlen(d["ad_type"].GetString());
+    memcpy(ip + ip_counter, d["ip_address"].GetString(), strlen(d["ip_address"].GetString()));
+    ip_counter += strlen(d["ip_address"].GetString());
   }
   gettimeofday(&end, 0);
   timersub(&end, &start, &diff);
@@ -49,6 +73,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < EVENTS; i++) {
     sum += times[i];
   }
-  printf("%ld\n", sum);
+  printf("%ld ... %c %c %c %c %c %c\n", sum, ad_id[sum % (EVENTS * 250)], page_id[sum % (EVENTS * 250)], user_id[sum % (EVENTS * 250)],
+         event_type[sum % (EVENTS * 250)], ad_type[sum % (EVENTS * 250)], ip[sum % (EVENTS * 250)]);
   return 0;
 }
